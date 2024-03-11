@@ -1,4 +1,3 @@
-
 import serial
 
 # Assign Arduino's serial port address
@@ -9,39 +8,28 @@ import serial
 #   MacOSX example
 #     usbport = '/dev/tty.usbserial-FTALLOK2'
 usbport = '/dev/cu.usbserial-1220'
+baud = 9600
 
 # Set up serial baud rate
-ser = serial.Serial(usbport, 9600, timeout=1)
+try:
+    ser = serial.Serial(usbport, baud, timeout=1)
+except:
+    print("Failed to open " + usbport + ".\n")
+    exit(0)
+print("Serial port " + usbport+ " opened at Baudrate " + str(baud))
 
-def move(servo, angle):
-    """Set the motor to the specified speed.
 
-    Arguments:
-        servo
-          the servo number to command, an integer from 1-4
-        angle
-          the desired servo angle, an integer from 0 to 180
-
-    (e.g.) >>> servo.move(2, 90)
-           ... # "move servo #2 to 90 degrees\""""
-
-    if (0 <= angle <= 180):
-        ser.write(chr(255))
-        ser.write(chr(servo))
-        ser.write(chr(angle))
+def move(motor, speed):
+    if speed < -100 or speed > 100:
+        print("Speed must be an integer between -100 and 100.\n")
+    elif motor != 'left' and motor != 'right' and motor != 'both':
+        print("Motor must be 'left', 'right', or 'both'.\n")
     else:
-        print("Servo angle must be an integer between 0 and 180.\n")
+        message = "<" + motor + "," + str(speed) + ">"
+        ser.write(bytes(message, 'utf-8'))
 
-def init():
-    move(1, 90)
-    move(2, 90)
-    move(3, 90)
-    move(4, 90)
-    move(5, 90)
-    move(6, 90)
-
-# init()
 
 while True:
-    a, b = input("Enter servo number, angle: ")
-    move(a, b)
+    a = input("Enter motor: ")
+    b = input("Enter speed: ")
+    move(a, int(b))
