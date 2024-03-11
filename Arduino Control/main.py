@@ -1,18 +1,3 @@
-#!/usr/bin/env python
-
-################################################
-# Module:   servo.py
-# Created:  2 April 2008
-# Author:   Brian D. Wendt
-#   http://principialabs.com/
-# Version:  0.3
-# License:  GPLv3
-#   http://www.fsf.org/licensing/
-'''
-Provides a serial connection abstraction layer
-for use with Arduino "MultipleSerialServoControl" sketch.
-'''
-################################################
 
 import serial
 
@@ -23,13 +8,13 @@ import serial
 #     usbport = '/dev/ttyUSB0'
 #   MacOSX example
 #     usbport = '/dev/tty.usbserial-FTALLOK2'
-usbport = 'COM10'
+usbport = '/dev/cu.usbserial-1220'
 
 # Set up serial baud rate
 ser = serial.Serial(usbport, 9600, timeout=1)
 
 def move(servo, angle):
-    '''Moves the specified servo to the supplied angle.
+    """Set the motor to the specified speed.
 
     Arguments:
         servo
@@ -38,7 +23,7 @@ def move(servo, angle):
           the desired servo angle, an integer from 0 to 180
 
     (e.g.) >>> servo.move(2, 90)
-           ... # "move servo #2 to 90 degrees"'''
+           ... # "move servo #2 to 90 degrees\""""
 
     if (0 <= angle <= 180):
         ser.write(chr(255))

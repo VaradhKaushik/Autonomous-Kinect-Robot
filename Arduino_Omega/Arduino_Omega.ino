@@ -14,29 +14,18 @@ Servo right;
 void setup() {
   left.attach(leftPin, minValue, maxValue); 
   right.attach(rightPin, minValue, maxValue);
+
+  Serial.begin(9600);
 }
 
 void loop() {
-   int speed; //Implements speed variable
-  for(speed = 0; speed <= 70; speed += 5) { //Cycles speed up to 70% power for 1 second
-
-  setSpeed(speed); //Creates variable for speed to be used in in for loop
-
-  delay(1000);
-
+  int speed; //Implements speed variable
+  for(int i = 0; i <= 100; i+=5) {
+    Serial.println(i);
+    setSpeed(i);
+    delay(2000);
   }
-
-  delay(4000); //Stays on for 4 seconds
-
-  for(speed = 70; speed > 0; speed -= 5) { // Cycles speed down to 0% power for 1 second
-
-  setSpeed(speed); delay(1000);
-
-  }
-
-  setSpeed(0); //Sets speed variable to zero no matter what
-
-  delay(1000); //Turns off for 1 second 
+  delay(10000);
 }
 
 void arm() {

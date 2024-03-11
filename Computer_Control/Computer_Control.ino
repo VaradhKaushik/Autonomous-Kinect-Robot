@@ -1,130 +1,3 @@
-#include <Servo.h> 
-
-// Create a Servo object for each servo
-Servo servo1;
-Servo servo2;
-Servo servo3;
-Servo servo4;
-Servo servo5;
-Servo servo6;
-
-// TO ADD SERVOS:
-//   Servo servo5;
-//   etc...
-
-// Common servo setup values
-int minPulse = 600;   // minimum servo position, us (microseconds)
-int maxPulse = 2400;  // maximum servo position, us
-
-// User input for servo and position
-int userInput[3];    // raw input from serial buffer, 3 bytes
-int startbyte;       // start byte, begin reading input
-int servo;           // which servo to pulse?
-int pos;             // servo angle 0-180
-int i;               // iterator
-
-// LED on Pin 13 for digital on/off demo
-int ledPin = 13;
-int pinState = LOW;
-
-void setup() 
-{ 
-  // Attach each Servo object to a digital pin
-  servo1.attach(9, minPulse, maxPulse);
-  servo2.attach(3, minPulse, maxPulse);
-  servo3.attach(4, minPulse, maxPulse);
-  servo4.attach(5, minPulse, maxPulse);
-  servo5.attach(10, minPulse, maxPulse);
-  servo6.attach(11, minPulse, maxPulse);
-  // TO ADD SERVOS:
-  //   servo5.attach(YOUR_PIN, minPulse, maxPulse);
-  //   etc...
-
-  // LED on Pin 13 for digital on/off demo
-  pinMode(ledPin, OUTPUT);
-
-  // Open the serial connection, 9600 baud
-  Serial.begin(9600);
-} 
-
-void loop() 
-{ 
-  // Wait for serial input (min 3 bytes in buffer)
-  if (Serial.available() > 2) {
-    // Read the first byte
-    startbyte = Serial.read();
-    // If it's really the startbyte (255) ...
-    if (startbyte == 255) {
-      // ... then get the next two bytes
-      for (i=0;i<2;i++) {
-        userInput[i] = Serial.read();
-      }
-      // First byte = servo to move?
-      servo = userInput[0];
-      // Second byte = which position?
-      pos = userInput[1];
-      // Packet error checking and recovery
-      if (pos == 255) { 
-        servo = 255; 
-      }
-
-      // Assign new position to appropriate servo
-      switch (servo) {
-      case 1:
-        servo1.write(pos);    // move servo1 to 'pos'
-        break;
-      case 2:
-        servo2.write(pos);
-        break;
-      case 3:
-        servo3.write(pos);
-        break;
-      case 4:
-        servo4.write(pos);
-        break;
-      case 5:
-        servo5.write(pos);
-        break;
-      case 6:
-        servo6.write(pos);
-        break;
-
-        // TO ADD SERVOS:
-        //     case 5:
-        //       servo5.write(pos);
-        //       break;
-        // etc...
-
-        // LED on Pin 13 for digital on/off demo
-      case 99:
-        if (pos == 180) {
-          if (pinState == LOW) { 
-            pinState = HIGH; 
-          }
-          else { 
-            pinState = LOW; 
-          }
-        }
-        if (pos == 0) {
-          pinState = LOW;
-        }
-        digitalWrite(ledPin, pinState);
-        break;
-      }//switch
-      if (pos<10 || pos>170)
-      {
-        pinState=HIGH;
-      }
-      else
-      {
-        pinState=LOW;
-      }
-      digitalWrite(ledPin, pinState);
-    }//startbyte ok
-  }//serial avail
-}//loop
-
-
 #include <Servo.h>
 
 int leftPin = 3;
@@ -136,45 +9,94 @@ int maxValue = 2000;
 Servo left;
 Servo right;
 
-//int speed = 0;
+const byte buffSize = 40;
+char inputBuffer[buffSize];
+const char startMarker = '<';
+const char endMarker = '>';
+byte bytesRecvd = 0;
+boolean readInProgress = false;
+boolean newDataFromPC = false;
+char motor[buffSize];           // which motor (1 = left, 2 = right, 3 = both)
+int speed;             // servo angle -100 to 100
 
 void setup() {
+  Serial.begin(9600);
+
   left.attach(leftPin, minValue, maxValue); 
+  Serial.println("Left attached");
   right.attach(rightPin, minValue, maxValue);
+  Serial.println("Right Attached");
+
+  arm();
+  Serial.println("armed");
 }
 
-void loop() {
-   int speed; //Implements speed variable
-  for(speed = 0; speed <= 70; speed += 5) { //Cycles speed up to 70% power for 1 second
+void loop() { 
+  if(Serial.available() > 0) {
+    char x = Serial.read();
+      // the order of these IF clauses is significant
+    if (x == endMarker) {
+      readInProgress = false;
+      newDataFromPC = true;
+      inputBuffer[bytesRecvd] = 0;
 
-  setSpeed(speed); //Creates variable for speed to be used in in for loop
+      Serial.println(inputBuffer);
 
-  delay(1000);
+      // Parse the message
+      char * strtokIndx; // this is used by strtok() as an index
+      // Motor instruction
+      strtokIndx = strtok(inputBuffer,",");      // get the first part - the string
+      strcpy(motor, strtokIndx);
+      // Speed instruction
+      strtokIndx = strtok(NULL, ","); // this continues where the previous call left off
+      speed = atoi(strtokIndx);     // convert this part to an integer
 
+      if(speed < -100 || speed > 100) {
+        Serial.println("Invalid speed");
+      } else if(strcmp(motor, "left") == 0) {
+        setLeft(speed);
+      } else if(strcmp(motor, "right") == 0) {
+        setRight(speed);
+      } else if(strcmp(motor, "both") == 0) {
+        setBoth(speed);
+      } else {
+        Serial.println("Invalid motor");
+      }
+    }
+
+    // Read data in
+    if(readInProgress) {
+      inputBuffer[bytesRecvd] = x;
+      bytesRecvd ++;
+      if (bytesRecvd == buffSize) {
+        bytesRecvd = buffSize - 1;
+      }
+    }
+
+    // Should start reading data in
+    if (x == startMarker) { 
+      bytesRecvd = 0; 
+      readInProgress = true;
+    }
   }
-
-  delay(4000); //Stays on for 4 seconds
-
-  for(speed = 70; speed > 0; speed -= 5) { // Cycles speed down to 0% power for 1 second
-
-  setSpeed(speed); delay(1000);
-
-  }
-
-  setSpeed(0); //Sets speed variable to zero no matter what
-
-  delay(1000); //Turns off for 1 second 
 }
 
 void arm() {
-  setSpeed(0); //Sets speed variable 
-  delay(1000);
+  setBoth(0); //Sets speed variable 
+  delay(5000);
 }
 
-void setSpeed(int speed){
-
-  int angle = map(speed, 0, 100, 0, 180); //Sets servo positions to different speeds 
+void setLeft(int speed){
+  int angle = map(speed, -100, 100, 0, 180); //Sets servo positions to different speeds 
   left.write(angle);
-  right.write(angle);
+}
 
+void setRight(int speed) {
+  int angle = map(speed, -100, 100, 180, 0);
+  right.write(angle);
+}
+
+void setBoth(int speed) {
+  setLeft(speed);
+  setRight(speed);
 }
