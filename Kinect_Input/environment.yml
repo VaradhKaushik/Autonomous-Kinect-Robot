@@ -1,0 +1,9 @@
+name: rss_project
+channels:
+  - defaults
+dependencies:
+  - comtypes=1.1.4
+  - numpy
+  - ipykernel
+  - opencv
+prefix: D:\conda\envs\rss_project
