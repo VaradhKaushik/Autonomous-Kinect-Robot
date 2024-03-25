@@ -59,6 +59,14 @@ void loop() {
         setRight(speed);
       } else if(strcmp(motor, "both") == 0) {
         setBoth(speed);
+      }else if(strcmp(motor, "turnR") == 0) {
+        turnRight(speed);
+      }else if(strcmp(motor, "turnL") == 0) {
+        turnLeft(speed);
+      }else if(strcmp(motor, "forwardD") == 0) {
+        forwardDistance(speed);
+      }else if(strcmp(motor, "forwardT") == 0) {
+        forwardTime(speed);
       } else {
         Serial.println("Invalid motor");
       }
@@ -99,4 +107,30 @@ void setRight(int speed) {
 void setBoth(int speed) {
   setLeft(speed);
   setRight(speed);
+}
+
+void forwardTime(int seconds) {
+  setBoth(75);
+  delay(time*1000);
+}
+
+void forwardDistance(int feet) {
+  float feetPerSecond = 5;
+  forwardTime(feet/feetPerSecond);
+}
+
+void turnRight(int degrees) {
+  int millisecondsPerDegree = 1;
+  setRight(50);
+  setLeft(-50);
+  delay(degrees * millisecondsPerDegree)
+  setBoth(0);
+}
+
+void turnLeft(int degrees) {
+  int millisecondsPerDegree = 1;
+  setRight(-50);
+  setLeft(50);
+  delay(degrees * millisecondsPerDegree)
+  setBoth(0);
 }
