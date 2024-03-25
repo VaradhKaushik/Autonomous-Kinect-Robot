@@ -93,7 +93,7 @@ void setLeft(int speed){
 
 void setRight(int speed) {
   int angle = map(speed, -100, 100, 180, 0);
-  right.write(angle);
+  right.write(int(.9*angle);
 }
 
 void setBoth(int speed) {
