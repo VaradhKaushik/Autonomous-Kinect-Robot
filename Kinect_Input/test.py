@@ -12,6 +12,40 @@ from pykinect2 import PyKinectV2
 from pykinect2.PyKinectV2 import *
 from pykinect2 import PyKinectRuntime
 
+def get_point_cloud(depth_frame, prediction, kinect):
+    """
+    Get the 3D coordinates of each pixel in the depth image in camera space
+    :param depth_frame: Depth image
+    :param prediction: Object detection prediction
+    :param kinect: Kinect runtime object
+    :return: 3D coordinates of each pixel in the depth image in camera space + list of coordinates of detected objects
+    """
+    L = depth_frame.size
+    TYPE_CameraSpacePoint_Array = PyKinectV2._CameraSpacePoint * L
+    csps = TYPE_CameraSpacePoint_Array()
+    ptr_depth = np.ctypeslib.as_ctypes(depth_frame.flatten())
+    error_state = kinect._mapper.MapDepthFrameToCameraSpace(L, ptr_depth,L, csps)
+    if error_state:
+        print('Error in mapping depth frame to camera space')
+    else:
+        print('Depth frame mapped to camera space')
+    
+    pf_csps = ctypes.cast(csps, ctypes.POINTER(ctypes.c_float))
+    data = np.ctypeslib.as_array(pf_csps, shape=(L, 3)) # coordinates of each pixel in depth image in 3D space
+
+    # get coordinates for detected objects
+    point_cloud_objects = []
+    for i, box in enumerate(prediction[0]['boxes']):
+        score = prediction[0]['scores'][i].cpu().item()
+        label_index = prediction[0]['labels'][i].cpu().item()
+        label = COCO_INSTANCE_CATEGORY_NAMES[label_index]
+        
+        if score > 0.5:  # Confidence threshold
+            x1, y1, x2, y2 = box.cpu().numpy().astype(int)
+            coords = data[y1:y2, x1:x2]
+            point_cloud_objects.append((coords, label))
+    
+    return data, point_cloud_objects
 
 # COCO class labels for torchvision models
 COCO_INSTANCE_CATEGORY_NAMES = [
@@ -90,30 +124,7 @@ while True:
         cv2.imshow('Depth Image', depth_colormap)
         cv2.imshow('Color Image', resized_color_image)
 
-        L = depth_frame.size
-        TYPE_CameraSpacePoint_Array = PyKinectV2._CameraSpacePoint * L
-        csps = TYPE_CameraSpacePoint_Array()
-        ptr_depth = np.ctypeslib.as_ctypes(depth_frame.flatten())
-        error_state = kinect._mapper.MapDepthFrameToCameraSpace(L, ptr_depth,L, csps)
-        if error_state:
-            print('Error in mapping depth frame to camera space')
-        else:
-            print('Depth frame mapped to camera space')
         
-        pf_csps = ctypes.cast(csps, ctypes.POINTER(ctypes.c_float))
-        data = np.ctypeslib.as_array(pf_csps, shape=(L, 3)) # coordinates of each pixel in depth image in 3D space
-
-        # get coordinates for detected objects
-        point_cloud_objects = []
-        for i, box in enumerate(prediction[0]['boxes']):
-            score = prediction[0]['scores'][i].cpu().item()
-            label_index = prediction[0]['labels'][i].cpu().item()
-            label = COCO_INSTANCE_CATEGORY_NAMES[label_index]
-            
-            if score > 0.5:  # Confidence threshold
-                x1, y1, x2, y2 = box.cpu().numpy().astype(int)
-                coords = data[y1:y2, x1:x2]
-                point_cloud_objects.append((coords, label))
         
         if cv2.waitKey(1) == 27:
             break
