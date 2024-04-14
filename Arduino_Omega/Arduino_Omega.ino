@@ -22,16 +22,22 @@ void setup() {
   delay(5000);
 }
 void loop() { 
+  delay(5000);
+
   setBoth(75);
-  delay(5000);
+  delay(470);
   setBoth(0);
-  setLeft(50);
-  delay(5000);
+
+  delay(1000);
+  
+  turnLeft(259);
+
+  delay(1000);
+
+  setBoth(75);
+  delay(1000);
   setBoth(0);
-  setRight(50);
-  delay(5000);
-  setBoth(0);
-  delay(20000);
+  
 }
 
 void arm() {
@@ -45,11 +51,38 @@ void setLeft(int speed){
 }
 
 void setRight(int speed) {
-  int angle = map(speed, -100, 100, 180, 0);
+  int angle = map(speed, -100, 100, 160, 20);
   right.write(angle);
 }
 
 void setBoth(int speed) {
   setLeft(speed);
   setRight(speed);
+}
+
+void forwardTime(int seconds) {
+  setBoth(100);
+  delay(seconds*1000);
+  setBoth(0);
+}
+
+void forwardDistance(int feet) {
+  float feetPerSecond = 3;
+  forwardTime(int(feet/feetPerSecond));
+}
+
+void turnRight(int degrees) {
+  int millisecondsPerDegree = 1.95;
+  setRight(-50);
+  setLeft(50);
+  delay(degrees * millisecondsPerDegree);
+  setBoth(0);
+}
+
+void turnLeft(int degrees) {
+  int millisecondsPerDegree = 1.95;
+  setRight(50);
+  setLeft(-50);
+  delay(degrees * millisecondsPerDegree);
+  setBoth(0);
 }

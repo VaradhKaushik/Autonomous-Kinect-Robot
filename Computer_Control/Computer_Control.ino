@@ -112,6 +112,7 @@ void setBoth(int speed) {
 void forwardTime(int seconds) {
   setBoth(75);
   delay(time*1000);
+  setBoth(0);
 }
 
 void forwardDistance(int feet) {
