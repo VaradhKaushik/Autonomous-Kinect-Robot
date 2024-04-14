@@ -1,1 +1,5 @@
 __pycache__/
+*.safetensors
+CV\ Model/chkpt/
+CV\ Model/data/
+CV\ Model/tars/
