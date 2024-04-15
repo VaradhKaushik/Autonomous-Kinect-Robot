@@ -3,14 +3,14 @@ import torchvision
 from torchvision.models.detection import maskrcnn_resnet50_fpn
 from torchvision.io import read_image, ImageReadMode
 from torchvision.ops.boxes import masks_to_boxes
-from torchvision import tv_tensors
-from torchvision.transforms.v2 import functional as F
+# from torchvision import tv_tensors
+# from torchvision.transforms.v2 import functional as F
 from torchvision.utils import draw_bounding_boxes, draw_segmentation_masks
 import torch
 import os
 import cv2
 import numpy as np
-from safetensors.torch import save_model, load_model
+# from safetensors.torch import save_model, load_model
 import datetime
 from tqdm import tqdm
 import matplotlib.pyplot as plt
@@ -55,12 +55,36 @@ class ImageDataset(Dataset):
     def __len__(self):
         return len(self.images)
     
+    # def __getitem__(self, idx):
+    #     image_path = os.path.join(self.image_folder, self.images[idx])
+    #     image = read_image(image_path).to(dtype=torch.float32)
+    #     # mask = read_image(image_path.replace('.png', '_mask.png'), mode=ImageReadMode.GRAY)
+    #     # masks = (mask == 1).to(dtype=torch.float32)
+    #     # boxes = masks_to_boxes(masks)
+    #     mask = cv2.imread(image_path.replace('.png', '_mask.png'), cv2.IMREAD_GRAYSCALE)
+    #     masks = torch.tensor(mask > 127).unsqueeze(0).to(dtype=torch.uint8)
+    #     boxes = torch.from_numpy(generate_bounding_box(mask)).unsqueeze(0)
+    #     label = [1 if 'box' in image_path else 2 if 'can' in image_path else 3]
+    #     if 3 in label:
+    #         raise ValueError('Label not found', image_path)
+    #     labels = torch.Tensor(label).to(dtype=torch.int64)
+    #     image_id = idx
+    #     area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
+    #     iscrowd = torch.zeros((1,), dtype=torch.int64)
+    #     image = tv_tensors.Image(image)
+    #     target = {
+    #         'boxes': boxes,
+    #         'masks': masks,
+    #         'labels': labels,
+    #         'image_id': image_id,
+    #         'area': area,
+    #         'iscrowd': iscrowd
+    #     }
+    #     return image, target
+
     def __getitem__(self, idx):
         image_path = os.path.join(self.image_folder, self.images[idx])
         image = read_image(image_path).to(dtype=torch.float32)
-        # mask = read_image(image_path.replace('.png', '_mask.png'), mode=ImageReadMode.GRAY)
-        # masks = (mask == 1).to(dtype=torch.float32)
-        # boxes = masks_to_boxes(masks)
         mask = cv2.imread(image_path.replace('.png', '_mask.png'), cv2.IMREAD_GRAYSCALE)
         masks = torch.tensor(mask > 127).unsqueeze(0).to(dtype=torch.uint8)
         boxes = torch.from_numpy(generate_bounding_box(mask)).unsqueeze(0)
@@ -71,7 +95,6 @@ class ImageDataset(Dataset):
         image_id = idx
         area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
         iscrowd = torch.zeros((1,), dtype=torch.int64)
-        image = tv_tensors.Image(image)
         target = {
             'boxes': boxes,
             'masks': masks,
@@ -81,14 +104,23 @@ class ImageDataset(Dataset):
             'iscrowd': iscrowd
         }
         return image, target
+
     
-def create_model(num_classes):
-    model = torchvision.models.detection.maskrcnn_resnet50_fpn(weights='DEFAULT')
+def create_model(num_classes, weight_path=None):
+    model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=True)
+
     in_features = model.roi_heads.box_predictor.cls_score.in_features
     model.roi_heads.box_predictor = torchvision.models.detection.faster_rcnn.FastRCNNPredictor(in_features, num_classes)
+    
     in_features_mask = model.roi_heads.mask_predictor.conv5_mask.in_channels
     hidden_layer = 256
     model.roi_heads.mask_predictor = torchvision.models.detection.mask_rcnn.MaskRCNNPredictor(in_features_mask, hidden_layer, num_classes)
+
+    if weight_path is not None:
+        # state_dict = torch.load(weight_path, map_location=torch.device('cpu'))
+        state_dict = torch.load(weight_path, map_location=torch.device('cuda'))
+        model.load_state_dict(state_dict)
+
     return model
 
 def custom_collate_fn(batch):
@@ -114,15 +146,24 @@ def train():
 
     num_epochs = 10
 
+    # for epoch in range(num_epochs):
+    #     train_one_epoch(model, optimizer, train_set_loader, device, epoch, print_freq=10)
+    #     save_model(model, f'chkpt/model{datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S")}_epoch{epoch}.safetensors')
+    #     lr_scheduler.step()
+    #     evaluate(model, val_set_loader, device=device)
+    # save_model(model, f'model{datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S")}.safetensors')
     for epoch in range(num_epochs):
         train_one_epoch(model, optimizer, train_set_loader, device, epoch, print_freq=10)
-        save_model(model, f'chkpt/model{datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S")}_epoch{epoch}.safetensors')
+        torch.save(model.state_dict(), f'chkpt/model_epoch{epoch}_{datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S")}.pth')
         lr_scheduler.step()
         evaluate(model, val_set_loader, device=device)
-    save_model(model, f'model{datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S")}.safetensors')
+    torch.save(model.state_dict(), f'model_final_{datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S")}.pth')
     test(model, image_dataset, device)
 
 def test(model, image_dataset, device):
+    model = create_model(3)
+    # model.load_state_dict(torch.load('./chkpt/model_epoch9_13-04-2024_03-09-00.pth'))
+    model.load_state_dict(torch.load('./chkpt/model.pth'))
     model.eval()
     with torch.no_grad():
         image = image_dataset[np.random.randint(len(image_dataset))][0].to(device)
@@ -162,11 +203,21 @@ def test_display_image_w_box():
     
 if __name__ == '__main__':
     # train()
+    # os.chdir('CV Model')
+    # model = create_model(3)
+    # load_model(model, './chkpt/model13-04-2024_03-09-00_epoch9.safetensors')
+    # ds = ImageDataset()
+    # device = torch.device('cpu')
+    # test(model, ds, device)
+    # test_display_image_w_box()
     os.chdir('CV Model')
     model = create_model(3)
-    load_model(model, './chkpt/model13-04-2024_03-09-00_epoch9.safetensors')
+    model_path = './chkpt/model.pth'  # update this path to your saved model path
+    model.load_state_dict(torch.load(model_path))
+    model.to(torch.device('cpu'))  # Ensure model is on the correct device
+    model.eval()  # Set the model to evaluation mode
+
     ds = ImageDataset()
-    device = torch.device('cpu')
-    test(model, ds, device)
-    # test_display_image_w_box()
-    
+    device = torch.device('cpu')  # Set the device to CPU or GPU as required
+    test(model, ds, device)  # Assuming your test function uses the model correctly as per the updated settings
+    # test_display_image_w_box()  # Un-comment this if you want to run this function as well
