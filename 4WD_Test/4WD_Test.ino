@@ -1,13 +1,13 @@
 #include <Servo.h>
 
-int leftPin = 3;
-int rightPin = 5;
+int drivePin = 6;
+int turnPin = 3;
 
 int minValue = 1000;
 int maxValue = 2000;
 
-Servo left;
-Servo right;
+Servo drive;
+Servo turn;
 
 const byte buffSize = 40;
 char inputBuffer[buffSize];
@@ -17,18 +17,27 @@ byte bytesRecvd = 0;
 boolean readInProgress = false;
 boolean newDataFromPC = false;
 char motor[buffSize];           // which motor (1 = left, 2 = right, 3 = both)
-int data;             // servo angle -100 to 100
+int speed;             // servo angle -100 to 100
 
 void setup() {
   Serial.begin(9600);
 
-  left.attach(leftPin, minValue, maxValue); 
-  Serial.println("Left attached");
-  right.attach(rightPin, minValue, maxValue);
-  Serial.println("Right Attached");
+  drive.attach(drivePin, minValue, maxValue); 
+  Serial.println("Drive attached");
+  turn.attach(turnPin, minValue, maxValue);
+  Serial.println("Turn Attached");
 
-  arm();
+  //arm();
   Serial.println("armed");
+
+  drive.write(0);
+  turn.write(0);
+  delay(5000);
+  drive.write(90);
+  turn.write(90);
+  delay(5000);
+  drive.write(180);
+  turn.write(180);
 }
 
 void loop() { 
@@ -49,28 +58,24 @@ void loop() {
       strcpy(motor, strtokIndx);
       // Speed instruction
       strtokIndx = strtok(NULL, ","); // this continues where the previous call left off
-      data = atoi(strtokIndx);     // Speed/degrees/time/distance
+      speed = atoi(strtokIndx);     // convert this part to an integer
 
-      if(data < -100 || data > 100) {
+      if(speed < -100 || speed > 100) {
         Serial.println("Invalid speed");
-      } else if(strcmp(motor, "left") == 0) {
-        setLeft(data);
+      } else if(strcmp(motor, "forward") == 0) {
+        driveGo(speed);
+      } else if(strcmp(motor, "reverse") == 0) {
+        driveGo(-1*speed);
       } else if(strcmp(motor, "right") == 0) {
-        setRight(data);
-      } else if(strcmp(motor, "both") == 0) {
-        setBoth(data);
-      }else if(strcmp(motor, "turnR") == 0) {
-        turnRight(data);
-      }else if(strcmp(motor, "turnL") == 0) {
-        turnLeft(data);
+        turnRight();
+      }else if(strcmp(motor, "left") == 0) {
+        turnLeft();
+      }else if(strcmp(motor, "straight") == 0) {
+        turnStraight();
       }else if(strcmp(motor, "forwardD") == 0) {
-        forwardDistance(data);
+        //forwardDistance(speed);
       }else if(strcmp(motor, "forwardT") == 0) {
-        forwardTime(data);
-      }else if(strcmp(motor, "reverseD") == 0) {
-        reverseTime(data);
-      }else if(strcmp(motor, "reverseT") == 0) {
-        reverseTime(data);
+        //forwardTime(speed);
       } else {
         Serial.println("Invalid motor");
       }
@@ -94,30 +99,19 @@ void loop() {
 }
 
 void arm() {
-  setBoth(0); //Sets speed variable 
+  drive.write(0);
   delay(5000);
 }
 
-void setLeft(int speed){
+void driveGo(int speed){
   int angle = map(speed, -100, 100, 0, 180); //Sets servo positions to different speeds 
-  left.write(angle);
-}
-
-void setRight(int speed) {
-  int angle = map(speed, -100, 100, 180, 0);
-  right.write(int(angle));
-}
-
-void setBoth(int speed) {
-  setLeft(speed);
-  setRight(speed);
+  drive.write(angle);
 }
 
 void forwardTime(int seconds) {
-  setLeft(40);
-  setRight(31);
+  driveGo(50);
   delay(seconds*1000);
-  setBoth(0);
+  driveGo(0);
 }
 
 void forwardDistance(int feet) {
@@ -125,29 +119,14 @@ void forwardDistance(int feet) {
   forwardTime(feet/feetPerSecond);
 }
 
-void reverseTime(int seconds) {
-  setBoth(-25);
-  delay(seconds*1000);
-  setBoth(0);
+void turnRight() {
+  turn.write(180);
 }
 
-void reverseDistance(int feet) {
-  float feetPerSecond = 5;
-  reverseTime(feet/feetPerSecond);
+void turnLeft() {
+  turn.write(0);
 }
 
-void turnRight(int degrees) {
-  int millisecondsPerDegree = 8;
-  setRight(-50);
-  setLeft(50);
-  delay(degrees * millisecondsPerDegree);
-  setBoth(0);
-}
-
-void turnLeft(int degrees) {
-  int millisecondsPerDegree = 10;
-  setRight(50);
-  setLeft(-50);
-  delay(degrees * millisecondsPerDegree);
-  setBoth(0);
+void turnStraight() {
+  turn.write(90);
 }

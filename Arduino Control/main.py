@@ -19,17 +19,17 @@ except:
 print("Serial port " + usbport+ " opened at Baudrate " + str(baud))
 
 
-def move(motor, speed):
+def send(command, speed):
     if speed < -100 or speed > 100:
         print("Speed must be an integer between -100 and 100.\n")
-    elif motor != 'left' and motor != 'right' and motor != 'both':
+    elif command != 'left' and command != 'right' and command != 'both':
         print("Motor must be 'left', 'right', or 'both'.\n")
     else:
-        message = "<" + motor + "," + str(speed) + ">"
+        message = "<" + command + "," + str(speed) + ">"
         ser.write(bytes(message, 'utf-8'))
 
 
 while True:
-    a = input("Enter motor: ")
-    b = input("Enter speed: ")
-    move(a, int(b))
+    a = input("Enter command: ")
+    b = input("Enter data: ")
+    send(a, int(b))
