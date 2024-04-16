@@ -3,3 +3,5 @@ __pycache__/
 CV\ Model/chkpt/
 CV\ Model/data/
 CV\ Model/tars/
+CV\ Model/rgbd-dataset
+*.pth
