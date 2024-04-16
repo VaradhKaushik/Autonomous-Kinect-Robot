@@ -1,5 +1,6 @@
 __pycache__/
 *.safetensors
+*.pth
 CV\ Model/chkpt/
 CV\ Model/data/
 CV\ Model/tars/

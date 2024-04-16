@@ -14,6 +14,10 @@ from torchvision.models.detection import fasterrcnn_resnet50_fpn
 
 from shapely.geometry import Point, Polygon, LineString
 
+import sys
+sys.path.append('./Arduino Control/')
+from main import move
+
 from typing import List, Tuple
 
 OBJECT_CLASSES = ['CAN', 'BOX']
@@ -43,6 +47,22 @@ class RobotController():
         # based off current location and target location, determine the angle to turn to
         relative_x = x - self.position[0]
         relative_y = y - self.position[1]
+        target_angle = np.arctan2(relative_y, relative_x)
+        angle_diff = target_angle - self.angle
+        if angle_diff > np.pi:
+            angle_diff -= 2*np.pi
+        elif angle_diff < -np.pi:
+            angle_diff += 2*np.pi
+        # turn to the target angle
+        if angle_diff > 0:
+            move('turnR', int(np.degrees(angle_diff)))
+        else:
+            move('turnL', int(np.degrees(angle_diff)))
+        
+        # move forward
+        distance_mm = np.linalg.norm(np.array([relative_x, relative_y]))
+        distance_ft = distance_mm / 304.8
+        move('forwardD', int(distance_ft))
     
     def run(self):
         while self.state_machine != States.FINISHED:
@@ -58,8 +78,8 @@ class RobotController():
                 self.stop()
             else:
                 self.finish()
-    
-    def search_for_object(self):
+
+    def update_model(self):
         point_cloud, predictions = get_point_cloud_and_predictions(self.model, self.kinect)
         
         # for each prediction, get a 2D top-down view of the object
@@ -81,6 +101,9 @@ class RobotController():
                 box = np.int0(box)
                 polygon = Polygon(box)
                 self.objects.append((polygon, label))
+    
+    def search_for_object(self):
+        
         
         # if there are objects, select the closest one
         if self.objects:
@@ -91,7 +114,7 @@ class RobotController():
             self.state_machine = States.APPROACH_OBJECT
         else:
             # move to a new position
-            self.drive_to(np.random.randint(-10, 10) + self.position[0], np.random.randint(-10, 10) + self.position[1])
+            self.drive_to(np.random.randint(-100, 100) + self.position[0], np.random.randint(-100, 100) + self.position[1])
     
     def _check_edge(self, node1, node2, object_ignore=[]):
         """
@@ -120,9 +143,9 @@ class RobotController():
                 tree_points = list(tree.keys())
                 random_tree_point_idx = np.random.randint(0, len(tree_points))
                 random_tree_point = tree_points[random_tree_point_idx]
-                sample = tuple(np.random.normal(loc=random_tree_point, scale=3.0, size=2))
+                sample = tuple(np.random.normal(loc=random_tree_point, scale=50.0, size=2))
             else:
-                sample = tuple(np.random.normal(loc=q_goal, scale=3.0, size=2))
+                sample = tuple(np.random.normal(loc=q_goal, scale=50.0, size=2))
 
             # Find the nearest node in the tree
             min_dist = float('inf')
@@ -139,6 +162,7 @@ class RobotController():
             if sample != nearest_node and np.linalg.norm(np.array(nearest_node) - np.array(q_goal)) < 5:
                 # Path found, update the state machine and exit the loop
                 tree[q_goal] = nearest_node
+                print('Path found')
                 break
                     
                 
@@ -146,10 +170,19 @@ class RobotController():
         # Get the path from the tree
         path = [q_goal]
         while path[-1] != q_start and len(path) < 10:
-            print(path)
+            # print(path)
             path.append(tree[path[-1]])
         
         return path[::-1]
+    
+    def smooth_path(self, path):
+        i = 0
+        while i < len(path) - 2:
+            if self._check_edge(path[i], path[i+2]):
+                path.pop(i+1)
+            else:
+                i += 1
+        return path
 
     def approach_object(self):
         assert(self.target_object is not None)
@@ -164,9 +197,26 @@ class RobotController():
                 for node in path:
                     self.drive_to(node[0], node[1])
             self.state_machine = States.PUSH_OBJECT
+    
+    def _drive_path(self, path):
+        for node in path:
+            self.update_model()
+            self.drive_to(node[0], node[1])
+    
+    def push_object(self):
+        pass
+
+    def return_to_start(self):
+        path = self._rrt(self.position, (0, 0))
+        path = self.smooth_path(path)
+        for node in path:
+            self.drive_to(node[0], node[1])
 
 
 if __name__ == '__main__':
     robot = RobotController()
-    robot.objects = [(Polygon([(0, 10), (0, 20), (10, 20), (10, 10)]), 'BOX')]
-    print(robot._rrt((0, 0), (20, 20)))
+    robot.objects = [(Polygon([(0, 100), (0, 200), (100, 200), (100, 100)]), 'BOX'), (Point(100, 70).buffer(30), 'CAN')]
+    path = robot._rrt((0, 0), (200, 200))
+    print(robot._check_edge((0, 0), (200, 200)))
+    print(path)
+    print(robot.smooth_path(path))
