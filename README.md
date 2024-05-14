@@ -59,7 +59,7 @@ The primary goal of this project is to develop a robotic system that can autonom
 
 The robot has been demonstrated to identify objects placed randomly within an environment and interact with them effectively. The demonstration includes object detection, navigation, and object manipulation sequences.
 
-Click on the image to watch the project demonstration!!
+**Click on the image to watch the project demonstration!!**
 
 [![Watch the video](https://img.youtube.com/vi/Y-eC66pAPso/maxresdefault.jpg)](https://youtu.be/Y-eC66pAPso)
 
