@@ -45,7 +45,7 @@ The primary goal of this project is to develop a robotic system that can autonom
    ```bash
    pip install -r requirements.txt
    ```
-3. Setup Arduino environment according to the schematics provided in the `hardware` folder.
+3. Setup Arduino environment according to the schematics provided in the `Arduino_Omega` folder.
 
 ## Usage
 
